@@ -1,13 +1,13 @@
 # Практическое задание №1
 ## Малько Егор Александрович
 
-Код `seq` и `par` расположен в [Main.kt](src\main\kotlin\Main.kt)
+Код `seq` и `par` расположен в [Main.kt](src/main/kotlin/Main.kt)
 
 Тесты на 
 1. корректность (`testSeqCorrectness` и `testParCorrectness`)
 2. сравнение время исполнения (`compareSpeed`)
 
-расположены в [Test.kt](src\test\kotlin\Test.kt)
+расположены в [Test.kt](src/test/kotlin/Test.kt)
 
 ## Код сортировки
 
@@ -28,7 +28,7 @@
 
 `PARALLELISM_BORDER` подобран экспериментально
 
-Параллельный код выполняется на 4 потоках (см `context` в [Main.kt](src\main\kotlin\Main.kt)). 
+Параллельный код выполняется на 4 потоках (см `context` в [Main.kt](src/main/kotlin/Main.kt)). 
 В этом можно убедиться поменяв количество потоков при инициализации context и запустив тесты. 
 Например, я временно поменял количество тредов с 4 на 16, и `par` стал быстрее `seq` в 7 раз, а не в 3
 
