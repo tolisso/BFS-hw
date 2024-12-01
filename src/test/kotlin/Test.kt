@@ -2,22 +2,26 @@ import io.github.tolisso.par
 import io.github.tolisso.seq
 import kotlinx.coroutines.*
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
 const val SMALL_ARRAY_SIZE = 1_000_000
 const val ARRAY_SIZE = 100_000_000
 
 class Test {
+
+    private fun randArr(size: Int) =
+        generateSequence { Random.nextInt() }.take(size).toList().toIntArray()
+
     @Test
     fun testSeqCorrectness() {
         fun test() {
-            val arrSorted = (0 until SMALL_ARRAY_SIZE).toList().toIntArray()
-            val arr = arrSorted.copyOf()
+            val arrOriginal = randArr(SMALL_ARRAY_SIZE)
+            val arr = arrOriginal.copyOf()
 
-            arr.shuffle()
             seq(arr, 0, SMALL_ARRAY_SIZE - 1)
 
-            assert(arr.contentEquals(arrSorted))
+            assert(arr.contentEquals(arrOriginal.sortedArray()))
         }
 
         repeat(10) {
@@ -29,15 +33,14 @@ class Test {
     @Test
     fun testParCorrectness() {
         fun test() {
-            val arrSorted = (0 until SMALL_ARRAY_SIZE).toList().toIntArray()
-            val arr = arrSorted.copyOf()
+            val arrOriginal = randArr(SMALL_ARRAY_SIZE)
+            val arr = arrOriginal.copyOf()
 
-            arr.shuffle()
             runBlocking {
                 par(arr, 0, SMALL_ARRAY_SIZE - 1)
             }
 
-            assert(arr.contentEquals(arrSorted))
+            assert(arr.contentEquals(arrOriginal.sortedArray()))
         }
 
         repeat(10) {
@@ -49,8 +52,7 @@ class Test {
     @Test
     fun compareSpeed() {
         fun testPar(): Long {
-            val arr = (0 until ARRAY_SIZE).toList().toIntArray()
-            arr.shuffle()
+            val arr = randArr(ARRAY_SIZE)
 
             return measureTimeMillis {
                 runBlocking {
@@ -60,8 +62,7 @@ class Test {
         }
 
         fun testSeq(): Long {
-            val arr = (0 until ARRAY_SIZE).toList().toIntArray()
-            arr.shuffle()
+            val arr = randArr(ARRAY_SIZE)
 
             return measureTimeMillis {
                 seq(arr, 0, ARRAY_SIZE - 1)
