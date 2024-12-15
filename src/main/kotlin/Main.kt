@@ -1,64 +1,58 @@
 package io.github.tolisso
 
 import kotlinx.coroutines.*
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicIntegerArray
+
+fun seq(graph: List<List<Int>>): List<Int> {
+    val ans = MutableList (graph.size) { -1 }
+    val queue = ArrayDeque<Int>()
+    queue.addFirst(0)
+    ans[0] = 0
+
+    while (queue.isNotEmpty()) {
+        val node = queue.removeFirst()
+        for (to in graph[node]) {
+            if (ans[to] == -1) {
+                ans[to] = ans[node] + 1
+                queue.addLast(to)
+            }
+        }
+    }
+
+    return ans
+}
 
 const val PARALLELISM_BORDER = 10000
 
-@OptIn(DelicateCoroutinesApi::class)
-val context = newFixedThreadPoolContext(nThreads = 4, "QuickSortPool")
+fun par(graph: List<List<Int>>) = Executors.newFixedThreadPool(4).asCoroutineDispatcher().use { dispatcher ->
+    runBlocking(dispatcher) {
+        val ans = AtomicIntegerArray(IntArray(graph.size) { -1 })
+        var depth = 0
+        var f = listOf(0)
+        ans.set(0, 0)
 
-fun seq(arr: IntArray, left: Int, right: Int) {
-    val (start, end) = partition(left, right, arr)
+        while (f.isNotEmpty()) {
+            val borders = (0 until f.size / PARALLELISM_BORDER).map { it to it + PARALLELISM_BORDER } +
+                    (f.size - f.size % PARALLELISM_BORDER to f.size)
+            f = borders.map { (fromF, toF) ->
+                async {
+                    val next = mutableListOf<Int>()
+                    (fromF until toF).map { index ->
+                        val from = f[index]
+                        for (to in graph[from]) {
+                            if (ans.compareAndSet(to, -1, depth + 1)) {
+                                next.add(to)
+                            }
+                        }
+                    }
+                    next
+                }
+            }.toList().awaitAll().flatten()
 
-    if (left < end) {
-        seq(arr, left, end)
-    }
-    if (start < right) {
-        seq(arr, start, right)
-    }
-}
-
-suspend fun par(arr: IntArray, left: Int, right: Int): Unit = coroutineScope {
-    if (right - left < PARALLELISM_BORDER) {
-        seq(arr, left, right)
-        return@coroutineScope
-    }
-
-    val (start, end) = partition(left, right, arr)
-
-    val job1 = async(context) {
-        if (left < end) {
-            par(arr, left, end)
+            depth++
         }
-    }
-    val job2 = async(context) {
-        if (start < right) {
-            par(arr, start, right)
-        }
-    }
-    job1.join()
-    job2.join()
-}
 
-private fun partition(left: Int, right: Int, arr: IntArray): Pair<Int, Int> {
-    var start = left
-    var end = right
-    val pivot = arr[(left + right) / 2]
-
-    while (start <= end) {
-        while (arr[start] < pivot) {
-            start++
-        }
-        while (arr[end] > pivot) {
-            end--
-        }
-        if (start <= end) {
-            val temp = arr[start]
-            arr[start] = arr[end]
-            arr[end] = temp
-            start++
-            end--
-        }
+        List(graph.size) { ans[it] }
     }
-    return Pair(start, end)
 }

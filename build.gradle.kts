@@ -11,13 +11,12 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation(kotlin("test"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 }
 
 tasks.test {
     useJUnitPlatform()
-    jvmArgs = listOf("-Xms4g", "-Xmx4g")
+    jvmArgs = listOf("-Xms18g", "-Xmx18g")
 }
 
 kotlin {

@@ -2,78 +2,92 @@ import io.github.tolisso.par
 import io.github.tolisso.seq
 import kotlinx.coroutines.*
 import org.junit.jupiter.api.Test
-import kotlin.random.Random
 import kotlin.system.measureTimeMillis
-
-const val SMALL_ARRAY_SIZE = 1_000_000
-const val ARRAY_SIZE = 100_000_000
+import kotlin.test.assertEquals
 
 class Test {
 
-    private fun randArr(size: Int) =
-        generateSequence { Random.nextInt() }.take(size).toList().toIntArray()
-
     @Test
-    fun testSeqCorrectness() {
-        fun test() {
-            val arrOriginal = randArr(SMALL_ARRAY_SIZE)
-            val arr = arrOriginal.copyOf()
+    fun testCorrectness() {
+        testCorrectnessAbstract { seq(it) }
+        testCorrectnessAbstract { par(it) }
+    }
 
-            seq(arr, 0, SMALL_ARRAY_SIZE - 1)
+    private fun testCorrectnessAbstract(f: (List<List<Int>>) -> List<Int>) {
+        assertEquals(listOf(0, 1, 2, 3, 4), f(
+            listOf(
+                listOf(1),
+                listOf(2),
+                listOf(3),
+                listOf(4),
+                listOf(),
+            )
+        ))
 
-            assert(arr.contentEquals(arrOriginal.sortedArray()))
-        }
+        assertEquals(listOf(0, 1, 2, 1, 2), f(
+            listOf(
+                listOf(1, 3),
+                listOf(2),
+                listOf(3),
+                listOf(4),
+                listOf(),
+            )
+        ))
 
-        repeat(10) {
-            test()
-        }
+        assertEquals(listOf(0, 1, 2, 2, 1), f(
+            listOf(
+                listOf(1, 4),
+                listOf(2, 0),
+                listOf(3, 1),
+                listOf(4, 2),
+                listOf(0, 3),
+            )
+        ))
+
         println("test seq correctness passed")
     }
 
-    @Test
-    fun testParCorrectness() {
-        fun test() {
-            val arrOriginal = randArr(SMALL_ARRAY_SIZE)
-            val arr = arrOriginal.copyOf()
-
-            runBlocking {
-                par(arr, 0, SMALL_ARRAY_SIZE - 1)
+    private fun generateCubicGraph(): List<List<Int>> {
+        val size = 450
+        fun cordToIndex(x: Int, y: Int, z: Int) =
+            if (listOf(x, y, z).any { it >= size }) {
+                null
+            } else {
+                ((x * size) + y) * size + z
             }
 
-            assert(arr.contentEquals(arrOriginal.sortedArray()))
-        }
+        val res = mutableListOf<List<Int>>()
 
-        repeat(10) {
-            test()
+        (0 until size).forEach { x ->
+            (0 until size).forEach { y ->
+                (0 until size).forEach { z ->
+                    res.add(listOfNotNull(
+                        cordToIndex(x + 1, y, z),
+                        cordToIndex(x, y + 1, z),
+                        cordToIndex(x, y, z + 1),
+                    ))
+                }
+            }
         }
-        println("test par correctness passed")
+        return res
     }
 
     @Test
     fun compareSpeed() {
-        fun testPar(): Long {
-            val arr = randArr(ARRAY_SIZE)
-
-            return measureTimeMillis {
-                runBlocking {
-                    par(arr, 0, ARRAY_SIZE - 1)
-                }
-            }
+        val graph = generateCubicGraph()
+        fun testPar() = measureTimeMillis {
+            par(graph)
         }
 
-        fun testSeq(): Long {
-            val arr = randArr(ARRAY_SIZE)
-
-            return measureTimeMillis {
-                seq(arr, 0, ARRAY_SIZE - 1)
-            }
+        fun testSeq() = measureTimeMillis {
+            seq(graph)
         }
 
         val parTime = (1..5).map { testPar() }.average()
         val seqTime = (1..5).map { testSeq() }.average()
 
-        assert(seqTime / parTime > 3)
         println("seq time = $seqTime, par time = $parTime, par faster in ${seqTime / parTime}")
+        assert(seqTime / parTime > 3)
     }
 
 }
